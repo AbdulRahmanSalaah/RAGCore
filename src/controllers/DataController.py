@@ -40,22 +40,21 @@ class DataController(BaseController):
         
         random_str = self.generate_random_string()
          
-        projet_path = ProjectController().get_project_path(project_id)
+        projet_path = ProjectController().get_project_path(project_id) #  make a folder for each project and add it to the files directory
          
-        cleaned_file_name = self.get_clean_file_name(orig_file_name)
+        cleaned_file_name = self.get_clean_file_name(orig_file_name) # clean the file name
 
 
-        new_file_name = os.path.join(
+        new_file_name = os.path.join( # create a new file name with a random string and the cleaned file name
             projet_path, 
              random_str + "_" + cleaned_file_name
         )
         
-        while os.path.exists(new_file_name):
+        while os.path.exists(new_file_name): # check if the file already exists, if it does, create a new random string and try again
             random_str = self.generate_random_string()
             new_file_name = os.path.join(
                 projet_path, 
                 random_str + "_" + cleaned_file_name
             )
 
-        return new_file_name, random_str + "_" + cleaned_file_name
-
+        return new_file_name, random_str + "_" + cleaned_file_name  # return the new file name and the new file name without the path

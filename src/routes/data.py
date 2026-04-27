@@ -25,10 +25,13 @@ async def upload_file(project_id: str, file: UploadFile, app_settings: Settings 
                 "signal": message  
             }
         )
-    file_path, saved_file_name = data_controller.generate_unique_file_name(project_id, file.filename)
+    # file_path : absolute path to the file
+    # saved_file_name : file name with random string and cleaned file name
+    file_path, saved_file_name = data_controller.generate_unique_file_name(project_id, file.filename) 
     
     try:
-        
+        # save the file to the file system using aiofiles and chunk size from app_settings 
+        # in binary mode write mode (wb)  
         async with aiofiles.open(file_path, "wb") as f:
             while chunk := await file.read(app_settings.FILE_DEFAULT_CHUNK_SIZE):
                 await f.write(chunk)
@@ -40,6 +43,7 @@ async def upload_file(project_id: str, file: UploadFile, app_settings: Settings 
                 "signal": ResponseSignal.FILE_UPLOAD_FAILED.value
             }
         ) 
+
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
