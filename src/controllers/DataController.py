@@ -36,7 +36,7 @@ class DataController(BaseController):
         return cleaned_file_name
 
     
-    def generate_unique_file_name(self, project_id: str, orig_file_name: str):
+    def generate_unique_filepath(self, project_id: str, orig_file_name: str):
         
         random_str = self.generate_random_string()
          

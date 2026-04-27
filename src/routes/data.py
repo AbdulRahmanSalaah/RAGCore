@@ -27,7 +27,7 @@ async def upload_file(project_id: str, file: UploadFile, app_settings: Settings 
         )
     # file_path : absolute path to the file
     # saved_file_name : file name with random string and cleaned file name
-    file_path, saved_file_name = data_controller.generate_unique_file_name(project_id, file.filename) 
+    file_path, saved_file_name = data_controller.generate_unique_filepath(project_id, file.filename) 
     
     try:
         # save the file to the file system using aiofiles and chunk size from app_settings 
