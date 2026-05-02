@@ -1,5 +1,5 @@
 from .BaseController import BaseController
-from .ProjectController import ProjectController  
+from .KnowledgeBaseController import KnowledgeBaseController  
 
 import os 
 
@@ -9,12 +9,12 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from models import ProcessingEnum
 
 
-class ProcessController(BaseController):
-    def __init__(self, project_id: str):
+class ProcessFileController(BaseController):
+    def __init__(self, kb_id: str):
         super().__init__()
 
-        self.project_id = project_id
-        self.project_path = ProjectController().get_project_path(project_id=project_id)
+        self.kb_id = kb_id
+        self.kb_path = KnowledgeBaseController().get_kb_path(kb_id=kb_id)
     
     def get_file_extension(self,file_id:str):
         return os.path.splitext(file_id)[-1]
@@ -22,7 +22,7 @@ class ProcessController(BaseController):
 
     def get_file_loader(self,file_id:str): # loader is the way to load the file from the file system to the memory
         file_extension = self.get_file_extension(file_id)
-        file_path = os.path.join(self.project_path, file_id)
+        file_path = os.path.join(self.kb_path, file_id)
 
         if file_extension == ProcessingEnum.TXT.value:
             return TextLoader(file_path, encoding="utf-8")

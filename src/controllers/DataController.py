@@ -1,5 +1,5 @@
 from .BaseController import BaseController 
-from .ProjectController import ProjectController
+from .KnowledgeBaseController import KnowledgeBaseController
 from fastapi import UploadFile
 from models import ResponseSignal
 import os
@@ -36,24 +36,24 @@ class DataController(BaseController):
         return cleaned_file_name
 
     
-    def generate_unique_filepath(self, project_id: str, orig_file_name: str):
+    def generate_unique_filepath(self, kb_id: str, orig_file_name: str):
         
         random_str = self.generate_random_string()
          
-        projet_path = ProjectController().get_project_path(project_id) #  make a folder for each project and add it to the files directory
+        kb_path = KnowledgeBaseController().get_kb_path(kb_id) #  make a folder for each knowledge_base and add it to the files directory
          
         cleaned_file_name = self.get_clean_file_name(orig_file_name) # clean the file name
 
 
         new_file_name = os.path.join( # create a new file name with a random string and the cleaned file name
-            projet_path, 
+            kb_path, 
              random_str + "_" + cleaned_file_name
         )
         
         while os.path.exists(new_file_name): # check if the file already exists, if it does, create a new random string and try again
             random_str = self.generate_random_string()
             new_file_name = os.path.join(
-                projet_path, 
+                kb_path, 
                 random_str + "_" + cleaned_file_name
             )
 

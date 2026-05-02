@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, UploadFile ,status
+from fastapi import APIRouter, Depends, UploadFile ,status, Request
 from fastapi.responses import JSONResponse
 from helpers.config import get_settings, Settings
-from controllers import DataController , ProcessController
+from controllers import DataController ,  ProcessFileController
 import aiofiles
-from models import ResponseSignal
+from models import ResponseSignal  
 import logging
 from .schemes.data import ProcessFileRequest
+from models .KnowledgeBaseModel import KnowledgeBaseModel 
+from models .ChunkModel import ChunkModel
+from models .db_schemes import DataChunk
 
 
 data_router = APIRouter(
@@ -13,8 +16,14 @@ data_router = APIRouter(
     tags=["data"],
 )
 
-@data_router.post("/upload/{project_id}")
-async def upload_file(project_id: str, file: UploadFile, app_settings: Settings = Depends(get_settings)):
+@data_router.post("/upload/{kb_id}")
+async def upload_file(request: Request,kb_id: str, file: UploadFile, app_settings: Settings = Depends(get_settings)):
+
+    kb_model = KnowledgeBaseModel(db_client=request.app.db_client)
+
+    kb = await kb_model.get_knowledge_base_or_create(kb_id=kb_id)
+
+    
     # validate the file properties
     data_controller = DataController()
     is_valid, message = data_controller.validate_uploaded_file(file)
@@ -28,7 +37,7 @@ async def upload_file(project_id: str, file: UploadFile, app_settings: Settings 
         )
     # file_path : absolute path to the file
     # saved_file_name : file name with random string and cleaned file name
-    file_path, saved_file_name = data_controller.generate_unique_filepath(project_id, file.filename) 
+    file_path, saved_file_name = data_controller.generate_unique_filepath(kb_id, file.filename) 
     
     try:
         # save the file to the file system using aiofiles and chunk size from app_settings 
@@ -49,7 +58,8 @@ async def upload_file(project_id: str, file: UploadFile, app_settings: Settings 
         status_code=status.HTTP_200_OK,
         content={
             "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
-            "file_name": saved_file_name
+            "file_name": saved_file_name,
+            "kb_id": str(kb._id)
         }
     )
         
@@ -61,17 +71,22 @@ async def upload_file(project_id: str, file: UploadFile, app_settings: Settings 
 
 
 
-@data_router.post("/process/{project_id}")
-async def process_endpoint(project_id: str, process_request: ProcessFileRequest):
+@data_router.post("/process/{kb_id}")
+async def process_endpoint(request:Request,kb_id: str, process_request: ProcessFileRequest):
     file_id = process_request.file_id
     chunk_size = process_request.chunk_size
     chunk_overlap = process_request.chunk_overlap
     do_reset = process_request.do_reset
+    
+    
+    kb_model = KnowledgeBaseModel(db_client=request.app.db_client)
 
-    process_controller = ProcessController(project_id=project_id)
+    kb = await kb_model.get_knowledge_base_or_create(kb_id=kb_id)
 
-    file_content = process_controller.get_file_content(file_id=file_id)
-    file_chunks = process_controller.process_file_content(file_content=file_content,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+    process_file_controller = ProcessFileController(kb_id=kb_id)
+
+    file_content = process_file_controller.get_file_content(file_id=file_id)
+    file_chunks = process_file_controller.process_file_content(file_content=file_content,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
 
     if file_chunks is None or len(file_chunks) == 0:
         return JSONResponse(
@@ -81,7 +96,50 @@ async def process_endpoint(project_id: str, process_request: ProcessFileRequest)
             }
         )
 
-    return file_chunks
+    
+    chunks_model = ChunkModel(db_client=request.app.db_client)
+
+
+        
+        
+    file_chunks_records = [
+            DataChunk(
+                chunk_kb_id = kb.id,   
+                chunk_order = i+1,
+                chunk_text = chunk.page_content,
+                chunk_metadata = {
+                    "source": chunk.metadata.get("source"),
+                    "title" : chunk.metadata.get("title"), 
+                    "kb_id": str(kb.id),
+                    "page": chunk.metadata.get("page"),
+                    "author": chunk.metadata.get("author"),
+                    "keywords": chunk.metadata.get("keywords"),
+                    "total_pages": chunk.metadata.get("total_pages")
+                },
+            )
+            for i, chunk in enumerate(file_chunks)
+    ]
+    
+    
+    if do_reset == 1:
+        _ = await chunks_model.delete_chunks_by_kb_id(
+            kb_id=kb.id
+        )    
+    
+    number_of_records = await chunks_model.insert_many_chunks(chunks=file_chunks_records)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "signal": ResponseSignal.FILE_PROCESSING_SUCCESS.value,
+            "number_of_records": number_of_records
+        }
+    )
+    
+    
+    
+
+    
+
 
     
 
