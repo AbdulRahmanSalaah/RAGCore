@@ -3,10 +3,14 @@ services:
     image: mongo:7-jammy
     container_name: mini_rag_mongo
     ports:
-      - "27007:27017"
+      - "27007:27017"  # [HOST_PORT:CONTAINER_PORT] 
     
     volumes:
       - ./mongodb:/data/db
+
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     
     networks:
       - backend

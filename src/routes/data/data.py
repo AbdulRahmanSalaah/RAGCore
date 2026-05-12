@@ -19,7 +19,7 @@ data_router = APIRouter(
 @data_router.post("/upload/{kb_id}")
 async def upload_file(request: Request,kb_id: str, file: UploadFile, app_settings: Settings = Depends(get_settings)):
 
-    kb_model = KnowledgeBaseModel(db_client=request.app.db_client)
+    kb_model = await KnowledgeBaseModel.create_instance(db_client=request.app.db_client)
 
     kb = await kb_model.get_knowledge_base_or_create(kb_id=kb_id)
 
@@ -35,7 +35,7 @@ async def upload_file(request: Request,kb_id: str, file: UploadFile, app_setting
                 "signal": message  
             }
         )
-    # file_path : absolute path to the file
+    # file_path : absolute path to the file  ex : e:/kolya/mini_rag_course/project/mini_rag/src/assets/files/f266_my_document.docx
     # saved_file_name : file name with random string and cleaned file name
     file_path, saved_file_name = data_controller.generate_unique_filepath(kb_id, file.filename) 
     
@@ -59,7 +59,7 @@ async def upload_file(request: Request,kb_id: str, file: UploadFile, app_setting
         content={
             "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
             "file_name": saved_file_name,
-            "kb_id": str(kb._id)
+            "kb_id": str(kb.id)
         }
     )
         
@@ -72,14 +72,14 @@ async def upload_file(request: Request,kb_id: str, file: UploadFile, app_setting
 
 
 @data_router.post("/process/{kb_id}")
-async def process_endpoint(request:Request,kb_id: str, process_request: ProcessFileRequest):
+async def process_file(request:Request,kb_id: str, process_request: ProcessFileRequest):
     file_id = process_request.file_id
     chunk_size = process_request.chunk_size
     chunk_overlap = process_request.chunk_overlap
     do_reset = process_request.do_reset
     
     
-    kb_model = KnowledgeBaseModel(db_client=request.app.db_client)
+    kb_model = await KnowledgeBaseModel.create_instance(db_client=request.app.db_client)
 
     kb = await kb_model.get_knowledge_base_or_create(kb_id=kb_id)
 
@@ -97,7 +97,7 @@ async def process_endpoint(request:Request,kb_id: str, process_request: ProcessF
         )
 
     
-    chunks_model = ChunkModel(db_client=request.app.db_client)
+    chunks_model = await ChunkModel.create_instance(db_client=request.app.db_client)
 
 
         

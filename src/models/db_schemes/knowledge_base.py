@@ -12,6 +12,15 @@ class KnowledgeBase(BaseModel):
             raise ValueError('kb_id must be alphanumeric')
         
         return value
+    
+    @classmethod
+    def get_indexes(cls):
+        return [
+            {   "key": [("kb_id", 1)],  # Index on kb_id field , 1 for ascending order
+                "name": "kb_id_index",  # Name of the index
+                "unique": True   # Ensure kb_id is unique across documents 
+            } 
+        ]
 
     class Config:
         arbitrary_types_allowed = True
