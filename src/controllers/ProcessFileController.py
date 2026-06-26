@@ -1,5 +1,5 @@
 from .BaseController import BaseController
-from .KnowledgeBaseController import KnowledgeBaseController  
+from .ProjectController import ProjectController  
 
 import os 
 
@@ -10,19 +10,19 @@ from models import ProcessingEnum
 
 
 class ProcessFileController(BaseController):
-    def __init__(self, kb_id: str):
+    def __init__(self, project_id: str):
         super().__init__()
 
-        self.kb_id = kb_id
-        self.kb_path = KnowledgeBaseController().get_kb_path(kb_id=kb_id)
+        self.project_id = project_id
+        self.project_path = ProjectController().get_project_path(project_id=project_id)
     
-    def get_file_extension(self,file_id:str):
-        return os.path.splitext(file_id)[-1]
+    def get_file_extension(self, file_name: str):
+        return os.path.splitext(file_name)[-1]
     
 
-    def get_file_loader(self,file_id:str): # loader is the way to load the file from the file system to the memory
-        file_extension = self.get_file_extension(file_id)
-        file_path = os.path.join(self.kb_path, file_id)
+    def get_file_loader(self, file_name: str):  # loader is the way to load the file from the file system to the memory
+        file_extension = self.get_file_extension(file_name)
+        file_path = os.path.join(self.project_path, file_name)
 
         if file_extension == ProcessingEnum.TXT.value:
             return TextLoader(file_path, encoding="utf-8")
@@ -33,8 +33,8 @@ class ProcessFileController(BaseController):
 
 
 
-    def get_file_content(self,file_id:str): 
-        loader = self.get_file_loader(file_id)
+    def get_file_content(self, file_name: str):
+        loader = self.get_file_loader(file_name)
         return loader.load()  # .load() method will return the content of the file in the form of list of Document objects
 
 
