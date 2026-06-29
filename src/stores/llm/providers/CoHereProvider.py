@@ -6,7 +6,7 @@ import logging
 
 class CoHereProvider(LLMInterface):
     def __init__(self, api_key: str,
-                       default_input_max_characters: int=1000,
+                       default_input_max_characters: int=5000,
                        default_generation_max_output_tokens: int=1000,
                        default_generation_temperature: float=0.1):
         
@@ -21,6 +21,8 @@ class CoHereProvider(LLMInterface):
         self.embedding_size = None
 
         self.client = cohere.Client(api_key=self.api_key)
+        
+        self.enums = CoHereEnums
 
         self.logger = logging.getLogger(__name__ )
         
@@ -51,7 +53,7 @@ class CoHereProvider(LLMInterface):
         
         
         
-    def generate_text(self, prompt: str, chat_history: list=[], max_output_tokens: int=None, temperature: float = None):
+    def generate_text(self, prompt: str, system_prompt: str = None, chat_history: list=[], max_output_tokens: int=None, temperature: float = None):
         if not self.client:
             logging.error("Cohere client is not initialized.")
             return None
@@ -59,12 +61,13 @@ class CoHereProvider(LLMInterface):
         if not self.generation_model_id:
             logging.error("Generation model ID is not set.")
             return None
-        
+            
         try:
             response = self.client.chat(
                 model=self.generation_model_id,
-                chat_history=chat_history,
-                messages=self.process_text(prompt),
+                chat_history=chat_history if len(chat_history) > 0 else None,
+                message=prompt,
+                preamble=system_prompt,
                 max_tokens=max_output_tokens or self.default_generation_max_output_tokens,
                 temperature=temperature or self.default_generation_temperature,
             )
