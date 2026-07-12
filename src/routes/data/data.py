@@ -15,6 +15,7 @@ from models .ChunkModel import ChunkModel
 from models .db_schemes import DataChunk , Asset
 
 from models .AssetModel import AssetModel
+from controllers.NLPController import NLPController
 
 
 data_router = APIRouter(
@@ -23,7 +24,7 @@ data_router = APIRouter(
 )
 
 @data_router.post("/upload/{project_id}")
-async def upload_file(request: Request,project_id: str, file: UploadFile, app_settings: Settings = Depends(get_settings)):
+async def upload_file(request: Request,project_id: int, file: UploadFile, app_settings: Settings = Depends(get_settings)):
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
 
@@ -60,7 +61,7 @@ async def upload_file(request: Request,project_id: str, file: UploadFile, app_se
             }
         ) 
         
-        # store the assets into the database
+    # store the assets into the database
     asset_model = await AssetModel.create_instance(
         db_client=request.app.db_client
     )
@@ -94,7 +95,7 @@ async def upload_file(request: Request,project_id: str, file: UploadFile, app_se
 
 
 @data_router.post("/process/{project_id}")
-async def process_file(request:Request,project_id: str, process_request: ProcessFileRequest):
+async def process_file(request:Request,project_id: int, process_request: ProcessFileRequest):
     # file_name = process_request.file_name
     chunk_size = process_request.chunk_size
     chunk_overlap = process_request.chunk_overlap
@@ -159,9 +160,21 @@ async def process_file(request:Request,project_id: str, process_request: Process
     chunks_model = await ChunkModel.create_instance(db_client=request.app.db_client)
     
     if do_reset == 1:
+        nlp_controller = NLPController(
+            vectordb_client=request.app.vector_db_client,
+            generation_client=request.app.generation_client,
+            embedding_client=request.app.embedding_client,
+            template_parser=request.app.template_parser,
+            project_id=project_id,
+        )
+        # Drop vector collection first to avoid ForeignKeyViolationError
+        _ = await nlp_controller.reset_vector_db_collection()
+
+        # Then delete chunks from the relational DB
         _ = await chunks_model.delete_chunks_by_project_id(
             project_id=project.id
-        ) 
+        )
+
     for asset_id, file_name in project_files_names.items():
         file_content = process_file_controller.get_file_content(file_name=file_name)
         if file_content is None:

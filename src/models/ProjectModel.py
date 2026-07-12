@@ -1,70 +1,64 @@
 from .BaseDataModel import BaseDataModel
 from .db_schemes import Project
 from .enums.DataBaseEnum import DataBaseEnum
+from sqlalchemy import select, func
 
 
 class ProjectModel(BaseDataModel):
     def __init__(self, db_client: object):
         super().__init__(db_client)
-        self.project_collection = db_client[DataBaseEnum.COLLECTION_PROJECT_NAME.value]
+        self.db_client = db_client 
         
-# The create_instance class method is an asynchronous factory method that initializes an instance of the ProjectModel class. It takes a database client as an argument, creates an instance of the class, and then calls the init_collection method to ensure that the necessary collection and indexes are set up in the database before returning the instance. This pattern is useful for performing asynchronous initialization tasks that may be required before the instance can be used effectively.
     @classmethod
     async def create_instance(cls, db_client: object):
         instance = cls(db_client)
-        await instance.init_collection()
         return instance
 
 
-# This method checks if the collection for projects exists in the database. If it does not exist, it creates the collection and sets up the necessary indexes based on the specifications defined in the Project model. This ensures that the database is properly structured to store and manage project records efficiently.
-    async def init_collection(self):  # 
-        all_collections = await self.db_client.list_collection_names()
-        if DataBaseEnum.COLLECTION_PROJECT_NAME.value not in all_collections:
-            self.project_collection =  self.db_client[DataBaseEnum.COLLECTION_PROJECT_NAME.value]
-            indexes = Project.get_indexes()
-            for index in indexes:
-                await self.project_collection.create_index(
-                    index["key"], 
-                    name=index["name"], 
-                    unique=index["unique"]
-                )   
-        
 
     async def insert_project(self, project: Project):
-        result = await self.project_collection.insert_one(project.dict(by_alias=True, exclude_unset=True)) # the dict() method of a Pydantic model converts the model instance into a dictionary. 
-        project.id = result.inserted_id
+        async with self.db_client() as session:
+            async with session.begin():
+                session.add(project)
+            await session.commit()
+            await session.refresh(project)
+
         return project
     
 
 
     async def get_project_or_create(self,project_id:str):
-        record = await self.project_collection.find_one({  # find_one() method will return the document if it is found, otherwise it will return None
-            "project_id": project_id
-        })
+        async with self.db_client() as session:
+            async with session.begin():
+                query = select(Project).where(Project.id == project_id)
+                result = await session.execute(query)
+                project = result.scalar_one_or_none()
+                if project is None:
+                    project_rec = Project(
+                        id = project_id
+                    )
 
-        if record is None: # if the document is not found, create it using Project(project_id=project_id) and then insert it into the collection  
-            project = Project(project_id=project_id)
-            project = await self.insert_project(project)
-            return project
-        
-        return Project(**record)   # **record is used to unpack the dictionary and create a Project object from it
-
-
+                    project = await self.insert_project(project=project_rec)
+                    return project
+                else:
+                    return project
 
     async def get_all_projects(self,page:int = 1 ,page_size:int = 10):
-        # count total number of documents
-        total_documents = await self.project_collection.count_documents({})
+        async with self.db_client() as session:
+            async with session.begin():
 
-        # calculate total number of pages
-        total_pages = total_documents // page_size
-        if total_documents % page_size > 0:
-            total_pages += 1
+                total_documents = await session.execute(select(
+                    func.count( Project.id )
+                ))
 
-        cursor = self.project_collection.find().skip( (page-1) * page_size ).limit(page_size)
-        projects = []
-        async for document in cursor:
-            projects.append(
-                Project(**document)
-            )
+                total_documents = total_documents.scalar_one()
 
-        return projects, total_pages
+                total_pages = total_documents // page_size
+                if total_documents % page_size > 0:
+                    total_pages += 1
+
+                query = select(Project).offset((page - 1) * page_size ).limit(page_size)
+                result = await session.execute(query)
+                projects = result.scalars().all()
+
+                return projects, total_pages

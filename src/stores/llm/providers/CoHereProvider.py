@@ -2,7 +2,7 @@ from ..LLMInterface import LLMInterface
 from ..LLMEnums import CoHereEnums, DocumentTypeEnum
 import cohere
 import logging
-
+from typing import List, Union
 
 class CoHereProvider(LLMInterface):
     def __init__(self, api_key: str,
@@ -20,7 +20,7 @@ class CoHereProvider(LLMInterface):
         self.embedding_model_id = None
         self.embedding_size = None
 
-        self.client = cohere.Client(api_key=self.api_key)
+        self.client = cohere.ClientV2(api_key=self.api_key)
         
         self.enums = CoHereEnums
 
@@ -36,7 +36,7 @@ class CoHereProvider(LLMInterface):
     def construct_prompt(self, prompt: str, role: str):
         return {
             "role": role,
-            "text": self.process_text(prompt)
+            "content": prompt
         }
         
         
@@ -55,31 +55,42 @@ class CoHereProvider(LLMInterface):
         
     def generate_text(self, prompt: str, system_prompt: str = None, chat_history: list=[], max_output_tokens: int=None, temperature: float = None):
         if not self.client:
-            logging.error("Cohere client is not initialized.")
+            self.logger.error("CoHere client was not set")
             return None
-        
+
         if not self.generation_model_id:
-            logging.error("Generation model ID is not set.")
+            self.logger.error("Generation model for CoHere was not set")
             return None
-            
+
+        max_output_tokens = max_output_tokens if max_output_tokens else self.default_generation_max_output_tokens
+        temperature = temperature if temperature else self.default_generation_temperature
+
+        # Append user message — same pattern as OpenAIProvider
+        chat_history.append(
+            self.construct_prompt(prompt=prompt, role=self.enums.USER.value)
+        )
+
         try:
             response = self.client.chat(
                 model=self.generation_model_id,
-                chat_history=chat_history if len(chat_history) > 0 else None,
-                message=prompt,
-                preamble=system_prompt,
-                max_tokens=max_output_tokens or self.default_generation_max_output_tokens,
-                temperature=temperature or self.default_generation_temperature,
+                messages=chat_history,
+                max_tokens=max_output_tokens,
+                temperature=temperature,
             )
-            
-            return response.text.strip()
+
+            if not response or not response.message or not response.message.content or len(response.message.content) == 0:
+                self.logger.error("Error while generating text with CoHere")
+                return None
+
+            return response.message.content[0].text
+
         except Exception as e:
             logging.error(f"Error generating text with Cohere: {e}")
             return None
         
         
         
-    def embed_text(self, text: str, document_type: str = None):
+    def embed_text(self, text: Union[str, List[str]], document_type: str = None):
         if not self.client:
             logging.error("Cohere client is not initialized.")
             return None
@@ -87,20 +98,21 @@ class CoHereProvider(LLMInterface):
         if not self.embedding_model_id:
             logging.error("Embedding model ID is not set.")
             return None
-        
+        if isinstance(text, str):
+            text = [text]
         
         input_type = CoHereEnums.DOCUMENT
-        if document_type == DocumentTypeEnum.QUERY:
+        if document_type == DocumentTypeEnum.QUERY.value:
             input_type = CoHereEnums.QUERY
             
         try:
             response = self.client.embed(
                 model=self.embedding_model_id,
-                texts=[self.process_text(text)],
+                texts=[self.process_text(t) for t in text],
                 input_type=input_type.value,
                 embedding_types=['float'],
             )
-            return response.embeddings.float[0]
+            return [ f for f in response.embeddings.float ]
         except Exception as e:
             logging.error(f"Error generating embeddings with Cohere: {e}")
             return None
