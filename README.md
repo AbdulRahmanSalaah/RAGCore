@@ -10,7 +10,7 @@ A production-style **Retrieval-Augmented Generation (RAG)** backend for document
 
 ## Overview
 
-Mini-RAG is an end-to-end RAG pipeline: users upload documents, the system chunks and embeds them, stores the embeddings in a Postgres/PgVector store, and answers natural-language questions by retrieving relevant context and generating grounded responses through an LLM. The system is built around a **factory-pattern architecture**, making it easy to swap LLM providers or vector stores without touching business logic.
+RAGCore  is an end-to-end RAG pipeline: users upload documents, the system chunks and embeds them, stores the embeddings in a Postgres/PgVector store, and answers natural-language questions by retrieving relevant context and generating grounded responses through an LLM. The system is built around a **factory-pattern architecture**, making it easy to swap LLM providers or vector stores without touching business logic.
 
 ## Features
 
