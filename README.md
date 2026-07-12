@@ -1,4 +1,4 @@
-# Mini-RAG
+# RAGCore 
 
 A production-style **Retrieval-Augmented Generation (RAG)** backend for document-based question answering, built with FastAPI, PostgreSQL/PgVector, and a modular, provider-agnostic architecture.
 
