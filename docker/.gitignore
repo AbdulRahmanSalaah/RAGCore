@@ -1,2 +1,9 @@
-mongodb
-.env
+
+# Ignore environment variable files in env directory
+env/.env.*
+
+# Keep example environment variable files
+!env/.env.example.*
+
+# Ignore Prometheus data
+prometheus/data/
